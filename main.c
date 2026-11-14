@@ -12,6 +12,26 @@
 
 #define PORT "8080"
 
+const char *get_content_type(char *extension) {
+  if (strcmp(extension, "html") == 0)
+    return "text/html";
+  if (strcmp(extension, "ico") == 0)
+    return "image/x-icon";
+  if (strcmp(extension, "json") == 0)
+    return "application/json";
+  if (strcmp(extension, "css") == 0)
+    return "text/css";
+  if (strcmp(extension, "js") == 0)
+    return "text/javascript";
+  if (strcmp(extension, "png") == 0)
+    return "image/png";
+  if (strcmp(extension, "jpg") == 0)
+    return "image/jpeg";
+  if (strcmp(extension, "jpeg") == 0)
+    return "image/jpeg";
+  return "text/plain";
+}
+
 int create_server_socket(char *port) {
   struct addrinfo hints;
 
@@ -46,17 +66,20 @@ int create_server_socket(char *port) {
   return server_socket;
 }
 
-const char *create_response_headers() {
-  return "HTTP/1.1 200 OK\r\n"
-         "Connection: close\r\n"
-         "Content-Type: text/html; charset=UTF-8\r\n\r\n\0";
+void create_response_headers(char *buffer, size_t buffer_size,
+                             const char *content_type) {
+  char format[] = "HTTP/1.1 200 OK\r\n"
+                  "Connection: close\r\n"
+                  "Content-Type: %s\r\n\r\n\0";
+  snprintf(buffer, buffer_size, format, content_type);
 }
 
 enum HTTPMethod { GET, POST };
 
 struct HTTPRequest {
   enum HTTPMethod method;
-  char path[1024];
+  char path[4096];
+  char extension[64];
 };
 
 void parse_http_request(char *request_buffer, struct HTTPRequest *request) {
@@ -76,17 +99,29 @@ void parse_http_request(char *request_buffer, struct HTTPRequest *request) {
   char *second_space = strchr(request_buffer + start_idx, ' ');
   int path_len = second_space - first_space - 1;
   strncpy(request->path, request_buffer + start_idx, path_len);
+
+  // Parse Extention
+  char *dot = strrchr(request->path, '.');
+  int idx_of_dot = dot - request->path;
+  int extension_len = strlen(request->path) - idx_of_dot - 1;
+  strncpy(request->extension, request->path + idx_of_dot + 1, extension_len);
 }
 
 ssize_t read_file(const char *file_path, char *file_buffer,
                   size_t buffer_size) {
   // Read file
-  printf("Reading file \"%s\"\n", file_path);
   int fd = open(file_path, O_RDONLY);
   ssize_t bytes_read = read(fd, file_buffer, buffer_size);
   file_buffer[bytes_read] = '\0';
   close(fd);
   return bytes_read;
+}
+
+void print_request(struct HTTPRequest *request) {
+  const char *format = "Request Method:\t%s\n"
+                       "Request Path:\t%s\n"
+                       "Request Extension:\t%s\n";
+  printf(format, request->method, request->path, request->extension);
 }
 
 void accept_client(int server_socket_fd, char *serve_from) {
@@ -104,18 +139,24 @@ void accept_client(int server_socket_fd, char *serve_from) {
 
   // Parse HTTP method
   struct HTTPRequest request;
+  memset(&request, 0, sizeof(request));
   parse_http_request(buff, &request);
   char serve_file_path[2048];
   snprintf(serve_file_path, sizeof(serve_file_path), "%s%s", serve_from,
            request.path);
 
-  // Respond
-  const char *header = create_response_headers();
+  // Send Response Headers
+  char header_buffer[4096];
+  const char *content_type = get_content_type(request.extension);
+  create_response_headers(header_buffer, sizeof(header_buffer), content_type);
+  int bytes_sent =
+      send(client_socket_fd, header_buffer, strlen(header_buffer), 0);
+
+  // Send Response Body
   char resp_buffer[8192];
+  memset(&resp_buffer, 0, sizeof(resp_buffer));
   ssize_t resp_bytes =
       read_file(serve_file_path, resp_buffer, sizeof(resp_buffer));
-  printf("Resp buffer: %s\n", resp_buffer);
-  int bytes_sent = send(client_socket_fd, header, strlen(header), 0);
   bytes_sent = send(client_socket_fd, resp_buffer, resp_bytes, 0);
 
   // Close connection
