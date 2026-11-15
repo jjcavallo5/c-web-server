@@ -1,4 +1,5 @@
 #include <asm-generic/errno.h>
+#include <asm-generic/socket.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <netdb.h>
@@ -53,6 +54,13 @@ int create_server_socket(char *port) {
 
   if (server_socket <= 0) {
     printf("Failed to create socket\n");
+    exit(EXIT_FAILURE);
+  }
+
+  int enable = 1;
+  if (setsockopt(server_socket, SOL_SOCKET, SO_REUSEPORT, &enable,
+                 sizeof(enable)) != 0) {
+    perror("setsockopt");
     exit(EXIT_FAILURE);
   }
 
