@@ -11,6 +11,11 @@ struct HTTPRequest {
   enum HTTPMethod method;
 };
 
+struct HTTPResponse {
+  char headers[4096];
+  char body[8192];
+};
+
 const char *get_content_type(char *extension);
 
 void parse_http_request(char *request_buffer, struct HTTPRequest *request);
