@@ -3,13 +3,15 @@
 #include "server.h"
 #include <netdb.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define MAX_ROUTES 32
 
-void get_handler(struct HTTPRequest *req) {
+void get_handler(HTTPRequest *req, HTTPResponse *res) {
   printf("GET: Handled route: %s\n", req->path);
+  res->status = OK;
+  create_response_headers(&res->headers, 11, "text/plain");
+  strcpy(res->body, "It worked!\n");
 }
 
 void post_handler(struct HTTPRequest *req) {
@@ -41,11 +43,11 @@ void router_put(Router *router, const char *route, HTTPHandler handler) {}
 
 void router_static(Router *router, const char *root) {}
 
-void router_dispatch(Router *router, struct HTTPRequest *req) {
+void router_dispatch(Router *router, HTTPRequest *req, HTTPResponse *res) {
   for (int i = 0; i < router->_num_routes; i++) {
     if (req->method == router->routes[i].method) {
       if (strcmp(req->path, router->routes[i].path) == 0) {
-        router->routes[i].handler(req);
+        router->routes[i].handler(req, res);
       }
     }
   }
@@ -59,9 +61,11 @@ int server_interface(Router *router, char *in_buffer, ssize_t in_buffer_len,
   parse_http_request(in_buffer, &request);
 
   // Dispatch
-  router_dispatch(router, &request);
+  HTTPResponse response;
+  router_dispatch(router, &request, &response);
 
-  strcpy(out_buffer, "HTTP/1.1 200 OK");
+  // Save output
+  form_http_response(out_buffer, 8192, &response);
 
   return 0;
 }

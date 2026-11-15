@@ -23,6 +23,17 @@ const char *get_content_type(char *extension) {
   return "text/plain";
 }
 
+const char *format_response_code(HTTPStatus status) {
+  switch (status) {
+  case OK:
+    return "HTTP/1.1 200 OK";
+  case NOT_FOUND:
+    return "HTTP/1.1 404 Not Found";
+  case SERVER_ERROR:
+    return "HTTP/1.1 500 Internal Server Error";
+  }
+}
+
 void parse_http_request(char *request_buffer, struct HTTPRequest *request) {
   // Parse Method (GET and POST supported for now)
   if (strncmp(request_buffer, "GET", 3) == 0) {
@@ -55,11 +66,18 @@ void print_request(struct HTTPRequest *request) {
   printf(format, request->method, request->path, request->extension);
 }
 
-void create_response_headers(char *buffer, size_t buffer_size,
-                             const char *content_type, size_t content_size) {
-  char format[] = "HTTP/1.1 200 OK\r\n"
-                  "Connection: keep-alive\r\n"
-                  "Content-Length: %d\r\n"
-                  "Content-Type: %s\r\n\r\n";
-  snprintf(buffer, buffer_size, format, content_size, content_type);
+void create_response_headers(HTTPHeaders *headers, ssize_t content_length,
+                             const char *content_type) {
+  headers->content_length = content_length;
+  strncpy(headers->content_type, content_type, 64);
+}
+
+void form_http_response(char *out_buffer, ssize_t buffer_size,
+                        HTTPResponse *response) {
+  snprintf(out_buffer, buffer_size,
+           "%s\r\nContent-Type: %s\r\nContent-Length: %lu\r\nConnection: "
+           "keep-alive\r\n\r\n%s",
+           format_response_code(response->status),
+           response->headers.content_type, response->headers.content_length,
+           response->body);
 }

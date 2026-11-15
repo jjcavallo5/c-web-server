@@ -11,7 +11,6 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#include "http.h"
 #include "router.h"
 #include "server.h"
 
@@ -86,33 +85,6 @@ int accept_client(int server_socket_fd) {
 
   // Return client
   return client_fd;
-}
-
-int serve_client(char *in_buffer, ssize_t in_buffer_len, char *out_buffer) {
-  // Parse HTTP method
-  struct HTTPRequest request;
-  memset(&request, 0, sizeof(request));
-  parse_http_request(in_buffer, &request);
-  char serve_file_path[4096];
-  snprintf(serve_file_path, sizeof(serve_file_path), "%s%s", "./public",
-           request.path);
-
-  // Create Response Body
-  char resp_buffer[8192];
-  memset(&resp_buffer, 0, sizeof(resp_buffer));
-  ssize_t resp_bytes =
-      read_file(serve_file_path, resp_buffer, sizeof(resp_buffer));
-
-  // Send Response Headers
-  char header_buffer[4096];
-  const char *content_type = get_content_type(request.extension);
-  create_response_headers(header_buffer, sizeof(header_buffer), content_type,
-                          resp_bytes - 1);
-
-  snprintf(out_buffer, strlen(header_buffer) + strlen(resp_buffer), "%s%s",
-           header_buffer, resp_buffer);
-
-  return 0;
 }
 
 void close_connection(int fd, struct pollfd *pfds, nfds_t num_open_fds) {

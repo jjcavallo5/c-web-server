@@ -10,7 +10,7 @@ typedef enum RouterErrors {
   ROUTER_MAXRTS,
 } RouterErrors;
 
-typedef void (*HTTPHandler)(struct HTTPRequest *);
+typedef void (*HTTPHandler)(HTTPRequest *, HTTPResponse *);
 
 typedef struct Route {
   enum HTTPMethod method;
