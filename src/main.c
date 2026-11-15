@@ -137,6 +137,8 @@ void close_connection(int fd, struct pollfd *pfds, nfds_t num_open_fds) {
   for (nfds_t j = fd_idx; j < num_open_fds - 1; j++) {
     pfds[j] = pfds[j + 1];
   }
+
+  printf("Connection to fd %d closed.\n", fd);
 }
 
 int main(void) {
@@ -155,22 +157,12 @@ int main(void) {
 
   // Listen and accept connections
   while (poll(pfds, num_open_fds, -1)) {
-    printf("Top of loop, new read request recieved...\n");
     for (nfds_t i = 0; i < num_open_fds; i++) {
-      printf("Flags recieved for fd %d: ", pfds[i].fd);
-      if (pfds[i].revents & POLLIN)
-        printf("POLLIN ");
-      if (pfds[i].revents & POLLHUP)
-        printf("POLLHUP ");
-      printf("\n");
-
       // Listening socket, new connection
       if (i == 0 && (pfds[i].revents & POLLIN) && num_open_fds < 33) {
-        printf("New connection requested\n");
         pfds[num_open_fds].fd = accept_client(server_socket_fd);
         pfds[num_open_fds].events = POLLIN;
         num_open_fds++;
-        printf("New connection opened with fd: %d\n", pfds[i].fd);
       }
 
       // Client socket, read available
@@ -180,16 +172,14 @@ int main(void) {
             recv(pfds[i].fd, &request_buffer, sizeof(request_buffer) - 1, 0);
         if (bytes_recieved > 0) {
           request_buffer[bytes_recieved] = '\n';
-          serve_client(pfds[i].fd, serve_from, request_buffer);
+          serve_client(pfds[i].fd, (char *)serve_from, request_buffer);
         } else {
-          printf("Connection closed.");
           close_connection(pfds[i].fd, pfds, num_open_fds--);
         }
       }
 
       // Client socket, possible hangup
       else if (pfds[i].revents & POLLHUP) {
-        printf("Hangup on fd: %d\n", pfds[i].fd);
         close_connection(pfds[i].fd, pfds, num_open_fds--);
       }
     }
