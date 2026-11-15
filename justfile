@@ -2,9 +2,10 @@ default: run
 
 CC := "gcc"
 CC_FLAGS := "-Wall -Wextra"
-RELEASE_BIN_FOLDER := "build/bin"
-RELEASE_OBJ_FOLDER := "build/obj"
-RELEASE_TARGET := `realpath build/bin/server`
+BUILD_FOLDER := `realpath ./build`
+RELEASE_BIN_FOLDER := BUILD_FOLDER + "/bin"
+RELEASE_OBJ_FOLDER := BUILD_FOLDER + "/obj"
+RELEASE_TARGET := RELEASE_BIN_FOLDER + "/server"
 
 compile src target:
   {{ CC }} {{ CC_FLAGS }} -c {{ src }} -o {{ RELEASE_OBJ_FOLDER }}/{{ target }}
@@ -24,3 +25,6 @@ build: build-objs
 
 run: build
   {{ RELEASE_TARGET }}
+
+clean:
+  rm -rf {{ BUILD_FOLDER }}
