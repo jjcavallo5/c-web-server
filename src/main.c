@@ -68,14 +68,31 @@ ssize_t read_file(const char *file_path, char *file_buffer,
   return bytes_read;
 }
 
-int accept_client(int server_socket_fd, char *serve_from) {
-  // Listen
-  struct sockaddr client;
-  char buff[8192];
-
+int accept_client(int server_socket_fd) {
+  // Accept Client
+  struct sockaddr_storage client;
   socklen_t client_size = sizeof(client);
-  int client_socket_fd = accept(server_socket_fd, &client, &client_size);
-  ssize_t bytes_recieved = recv(client_socket_fd, &buff, sizeof(buff) - 1, 0);
+  int client_fd =
+      accept(server_socket_fd, (struct sockaddr *)&client, &client_size);
+
+  // Get connection info
+  char host[1024];
+  char port[64];
+  if (getnameinfo((struct sockaddr *)&client, client_size, host, sizeof(host),
+                  port, sizeof(port), NI_NUMERICHOST | NI_NUMERICSERV)) {
+    perror("getnameinfo");
+    exit(EXIT_FAILURE);
+  }
+  printf("New connection: %s:%s\n", host, port);
+
+  // Return client
+  return client_fd;
+}
+
+void serve_client(int client_fd, char *serve_from) {
+  // Listen
+  char buff[8192];
+  ssize_t bytes_recieved = recv(client_fd, &buff, sizeof(buff) - 1, 0);
   if (bytes_recieved > 0) {
     buff[bytes_recieved] = '\0';
   }
@@ -89,23 +106,26 @@ int accept_client(int server_socket_fd, char *serve_from) {
   snprintf(serve_file_path, sizeof(serve_file_path), "%s%s", serve_from,
            request.path);
 
-  // Send Response Headers
-  char header_buffer[4096];
-  const char *content_type = get_content_type(request.extension);
-  create_response_headers(header_buffer, sizeof(header_buffer), content_type);
-  send(client_socket_fd, header_buffer, strlen(header_buffer), 0);
-
-  // Send Response Body
+  // Create Response Body
   char resp_buffer[8192];
   memset(&resp_buffer, 0, sizeof(resp_buffer));
   ssize_t resp_bytes =
       read_file(serve_file_path, resp_buffer, sizeof(resp_buffer));
-  send(client_socket_fd, resp_buffer, resp_bytes, 0);
 
-  return client_socket_fd;
+  // Send Response Headers
+  char header_buffer[4096];
+  const char *content_type = get_content_type(request.extension);
+  create_response_headers(header_buffer, sizeof(header_buffer), content_type,
+                          resp_bytes);
+  send(client_fd, header_buffer, strlen(header_buffer), 0);
+
+  // Send Response Body
+  send(client_fd, resp_buffer, resp_bytes, 0);
 }
 
-int main() {
+int main(void) {
+  const char *serve_from = "./public";
+
   // Create server
   printf("Starting server...\n");
   int server_socket_fd = create_server_socket(PORT);
@@ -121,17 +141,29 @@ int main() {
   while (poll(pfds, num_open_fds, -1)) {
     printf("Top of loop, new read request recieved...\n");
     for (nfds_t i = 0; i < num_open_fds; i++) {
+      printf("Flags recieved for fd %d: ", pfds[i].fd);
+      if (pfds[i].revents & POLLIN)
+        printf("POLLIN ");
+      if (pfds[i].revents & POLLHUP)
+        printf("POLLHUP ");
+      printf("\n");
+
       // Listening socket, new connection
-      if (i == 0 && (pfds[i].revents & POLLIN) && i < 32) {
+      if (i == 0 && (pfds[i].revents & POLLIN) && num_open_fds < 33) {
         printf("New connection requested\n");
-        pfds[i].fd = accept_client(server_socket_fd, "./public");
-        pfds[i].events = POLLIN;
+        pfds[num_open_fds].fd = accept_client(server_socket_fd);
+        pfds[num_open_fds].events = POLLIN;
         num_open_fds++;
         printf("New connection opened with fd: %d\n", pfds[i].fd);
       }
 
+      // Client socket, read available
+      if (i > 0 && (pfds[i].revents & POLLIN)) {
+        serve_client(pfds[i].fd, serve_from);
+      }
+
       // Client socket, possible hangup
-      if (pfds[i].revents & POLLHUP) {
+      else if (pfds[i].revents & POLLHUP) {
         printf("Hangup on fd: %d\n", pfds[i].fd);
         close(pfds[i].fd);
         // Slide other FDs up in array
