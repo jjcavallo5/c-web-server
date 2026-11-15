@@ -56,9 +56,10 @@ void print_request(struct HTTPRequest *request) {
 }
 
 void create_response_headers(char *buffer, size_t buffer_size,
-                             const char *content_type) {
+                             const char *content_type, size_t content_size) {
   char format[] = "HTTP/1.1 200 OK\r\n"
-                  "Connection: close\r\n"
+                  "Connection: keep-alive\r\n"
+                  "Content-Length: %d\r\n"
                   "Content-Type: %s\r\n\r\n\0";
-  snprintf(buffer, buffer_size, format, content_type);
+  snprintf(buffer, buffer_size, format, content_size, content_type);
 }
