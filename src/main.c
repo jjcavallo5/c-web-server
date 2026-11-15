@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <poll.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,19 +90,11 @@ int accept_client(int server_socket_fd) {
   return client_fd;
 }
 
-void serve_client(int client_fd, char *serve_from) {
-  // Listen
-  char buff[8192];
-  ssize_t bytes_recieved = recv(client_fd, &buff, sizeof(buff) - 1, 0);
-  if (bytes_recieved > 0) {
-    buff[bytes_recieved] = '\0';
-  }
-  printf("Message recieved: \n\n%s\n", buff);
-
+void serve_client(int client_fd, char *serve_from, char *raw_request) {
   // Parse HTTP method
   struct HTTPRequest request;
   memset(&request, 0, sizeof(request));
-  parse_http_request(buff, &request);
+  parse_http_request(raw_request, &request);
   char serve_file_path[4096];
   snprintf(serve_file_path, sizeof(serve_file_path), "%s%s", serve_from,
            request.path);
@@ -121,6 +114,29 @@ void serve_client(int client_fd, char *serve_from) {
 
   // Send Response Body
   send(client_fd, resp_buffer, resp_bytes, 0);
+}
+
+void close_connection(int fd, struct pollfd *pfds, nfds_t num_open_fds) {
+  nfds_t fd_idx = -1;
+  for (nfds_t i = 0; i < num_open_fds; i++) {
+    if (pfds[i].fd == fd)
+      fd_idx = i;
+  }
+
+  if (fd_idx == -1) {
+    printf("WARNING: Failed to close file %d\n", fd);
+    return;
+  }
+
+  // Close file descriptor
+  if (close(fd)) {
+    perror("close");
+  }
+
+  // Handle pfds array
+  for (nfds_t j = fd_idx; j < num_open_fds - 1; j++) {
+    pfds[j] = pfds[j + 1];
+  }
 }
 
 int main(void) {
@@ -159,19 +175,22 @@ int main(void) {
 
       // Client socket, read available
       if (i > 0 && (pfds[i].revents & POLLIN)) {
-        serve_client(pfds[i].fd, serve_from);
+        char request_buffer[8192];
+        ssize_t bytes_recieved =
+            recv(pfds[i].fd, &request_buffer, sizeof(request_buffer) - 1, 0);
+        if (bytes_recieved > 0) {
+          request_buffer[bytes_recieved] = '\n';
+          serve_client(pfds[i].fd, serve_from, request_buffer);
+        } else {
+          printf("Connection closed.");
+          close_connection(pfds[i].fd, pfds, num_open_fds--);
+        }
       }
 
       // Client socket, possible hangup
       else if (pfds[i].revents & POLLHUP) {
         printf("Hangup on fd: %d\n", pfds[i].fd);
-        close(pfds[i].fd);
-        // Slide other FDs up in array
-        for (nfds_t j = i; j < num_open_fds - 1; j++) {
-          pfds[j] = pfds[j + 1];
-        }
-        num_open_fds--;
-        printf("Closed fd. Remaining: %lu\n", num_open_fds);
+        close_connection(pfds[i].fd, pfds, num_open_fds--);
       }
     }
   }
