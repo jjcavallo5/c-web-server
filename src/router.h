@@ -2,6 +2,7 @@
 #define ROUTER_H
 
 #include "http.h"
+#include <linux/limits.h>
 #include <netdb.h>
 
 #define MAX_ROUTES 32
@@ -22,6 +23,7 @@ typedef struct Router {
   char host[NI_MAXHOST];
   char port[NI_MAXSERV];
   Route routes[MAX_ROUTES];
+  char static_path[PATH_MAX];
   int _num_routes;
 } Router;
 

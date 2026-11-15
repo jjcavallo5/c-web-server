@@ -12,5 +12,6 @@ int main(int argc, char **argv) {
 
   router_get(&app, "/index.html", get_handler);
 
+  router_static(&app, "./public");
   router_run(&app);
 }

@@ -38,4 +38,6 @@ void form_http_response(char *out_buffer, ssize_t buffer_size,
 void create_response_headers(HTTPHeaders *headers, ssize_t content_length,
                              const char *content_type);
 
+void send_404(HTTPRequest *req, HTTPResponse *res);
+
 #endif /* HTTP_H */

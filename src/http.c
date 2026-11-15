@@ -81,3 +81,10 @@ void form_http_response(char *out_buffer, ssize_t buffer_size,
            response->headers.content_type, response->headers.content_length,
            response->body);
 }
+
+void send_404(HTTPRequest *req, HTTPResponse *res) {
+  res->status = NOT_FOUND;
+  char message[] = "404 Not Found";
+  create_response_headers(&res->headers, sizeof(message) - 1, "text/plain");
+  strncpy(res->body, message, sizeof(message));
+}
