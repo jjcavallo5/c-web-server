@@ -12,8 +12,8 @@
 #include <unistd.h>
 
 #include "http.h"
-
-#define PORT "8080"
+#include "router.h"
+#include "server.h"
 
 int create_server_socket(char *port) {
   struct addrinfo hints;
@@ -88,13 +88,13 @@ int accept_client(int server_socket_fd) {
   return client_fd;
 }
 
-void serve_client(int client_fd, char *serve_from, char *raw_request) {
+int serve_client(char *in_buffer, ssize_t in_buffer_len, char *out_buffer) {
   // Parse HTTP method
   struct HTTPRequest request;
   memset(&request, 0, sizeof(request));
-  parse_http_request(raw_request, &request);
+  parse_http_request(in_buffer, &request);
   char serve_file_path[4096];
-  snprintf(serve_file_path, sizeof(serve_file_path), "%s%s", serve_from,
+  snprintf(serve_file_path, sizeof(serve_file_path), "%s%s", "./public",
            request.path);
 
   // Create Response Body
@@ -107,11 +107,12 @@ void serve_client(int client_fd, char *serve_from, char *raw_request) {
   char header_buffer[4096];
   const char *content_type = get_content_type(request.extension);
   create_response_headers(header_buffer, sizeof(header_buffer), content_type,
-                          resp_bytes);
-  send(client_fd, header_buffer, strlen(header_buffer), 0);
+                          resp_bytes - 1);
 
-  // Send Response Body
-  send(client_fd, resp_buffer, resp_bytes, 0);
+  snprintf(out_buffer, strlen(header_buffer) + strlen(resp_buffer), "%s%s",
+           header_buffer, resp_buffer);
+
+  return 0;
 }
 
 void close_connection(int fd, struct pollfd *pfds, nfds_t num_open_fds) {
@@ -139,13 +140,11 @@ void close_connection(int fd, struct pollfd *pfds, nfds_t num_open_fds) {
   printf("Connection to fd %d closed.\n", fd);
 }
 
-int main(void) {
-  const char *serve_from = "./public";
-
+int run_http_server(Router *router, TcpCallback callback) {
   // Create server
   printf("Starting server...\n");
-  int server_socket_fd = create_server_socket(PORT);
-  printf("Server listening on port %s\n", PORT);
+  int server_socket_fd = create_server_socket(router->port);
+  printf("Server listening on port %s\n", router->port);
 
   // Set up multiplexing
   nfds_t num_open_fds = 1;
@@ -166,11 +165,15 @@ int main(void) {
       // Client socket, read available
       if (i > 0 && (pfds[i].revents & POLLIN)) {
         char request_buffer[8192];
+        char out_buffer[8192];
         ssize_t bytes_recieved =
             recv(pfds[i].fd, &request_buffer, sizeof(request_buffer) - 1, 0);
         if (bytes_recieved > 0) {
-          request_buffer[bytes_recieved] = '\n';
-          serve_client(pfds[i].fd, (char *)serve_from, request_buffer);
+          request_buffer[bytes_recieved] = '\0';
+
+          callback(router, request_buffer, strlen(request_buffer), out_buffer);
+
+          send(pfds[i].fd, out_buffer, strlen(out_buffer), 0);
         } else {
           close_connection(pfds[i].fd, pfds, num_open_fds--);
         }
@@ -182,4 +185,6 @@ int main(void) {
       }
     }
   }
+
+  return 0;
 }
