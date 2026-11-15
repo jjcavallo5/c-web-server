@@ -1,15 +1,26 @@
 default: run
 
-release_binary_folder := "build/bin"
-release_intermediate_folder := "build/obj"
-release_bin_path := `realpath build/bin/server`
+CC := "gcc"
+CC_FLAGS := "-Wall -Wextra"
+RELEASE_BIN_FOLDER := "build/bin"
+RELEASE_OBJ_FOLDER := "build/obj"
+RELEASE_TARGET := `realpath build/bin/server`
 
-build:
-  @mkdir -p {{ release_binary_folder }} {{ release_intermediate_folder }}
-  gcc -Wall -Wextra -o {{ release_bin_path }} src/main.c
+compile src target:
+  {{ CC }} {{ CC_FLAGS }} -c {{ src }} -o {{ RELEASE_OBJ_FOLDER }}/{{ target }}
+
+build-setup:
+  @mkdir -p {{ RELEASE_BIN_FOLDER }} {{ RELEASE_OBJ_FOLDER }}
+
+build-objs: build-setup
+  just compile src/main.c main.o
+  just compile src/http.c http.o
+
+build: build-objs
+  {{ CC }} {{ CC_FLAGS }} {{ RELEASE_OBJ_FOLDER }}/*.o -o {{ RELEASE_TARGET }}
   @echo
-  @echo "\033[1;30;42m Success \033[0m Binary built to" {{ release_bin_path }}
+  @echo "\033[1;30;42m Success \033[0m Binary built to" {{ RELEASE_TARGET }}
   @echo
 
 run: build
-  {{ release_bin_path }}
+  {{ RELEASE_TARGET }}

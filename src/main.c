@@ -60,14 +60,6 @@ int create_server_socket(char *port) {
   return server_socket;
 }
 
-void create_response_headers(char *buffer, size_t buffer_size,
-                             const char *content_type) {
-  char format[] = "HTTP/1.1 200 OK\r\n"
-                  "Connection: close\r\n"
-                  "Content-Type: %s\r\n\r\n\0";
-  snprintf(buffer, buffer_size, format, content_type);
-}
-
 ssize_t read_file(const char *file_path, char *file_buffer,
                   size_t buffer_size) {
   // Read file
@@ -76,13 +68,6 @@ ssize_t read_file(const char *file_path, char *file_buffer,
   file_buffer[bytes_read] = '\0';
   close(fd);
   return bytes_read;
-}
-
-void print_request(struct HTTPRequest *request) {
-  const char *format = "Request Method:\t%s\n"
-                       "Request Path:\t%s\n"
-                       "Request Extension:\t%s\n";
-  printf(format, request->method, request->path, request->extension);
 }
 
 void accept_client(int server_socket_fd, char *serve_from) {
