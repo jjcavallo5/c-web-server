@@ -1,5 +1,3 @@
-#include <asm-generic/errno.h>
-#include <asm-generic/socket.h>
 #include <fcntl.h>
 #include <netdb.h>
 #include <poll.h>
