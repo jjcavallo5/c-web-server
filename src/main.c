@@ -43,7 +43,11 @@ int create_server_socket(char *port) {
   hints.ai_next = NULL;
 
   struct addrinfo *result;
-  int addr_info = getaddrinfo(NULL, port, &hints, &result);
+  if (getaddrinfo(NULL, port, &hints, &result) != 0) {
+    perror("getaddrinfo");
+    exit(EXIT_FAILURE);
+  }
+
   int server_socket =
       socket(hints.ai_family, hints.ai_socktype, hints.ai_protocol);
 
@@ -126,11 +130,11 @@ void print_request(struct HTTPRequest *request) {
 
 void accept_client(int server_socket_fd, char *serve_from) {
   // Listen
-  struct sockaddr *client;
+  struct sockaddr client;
   char buff[8192];
-  socklen_t client_len = sizeof(*client);
 
-  int client_socket_fd = accept(server_socket_fd, client, &client_len);
+  socklen_t client_size = sizeof(client);
+  int client_socket_fd = accept(server_socket_fd, &client, &client_size);
   ssize_t bytes_recieved = recv(client_socket_fd, &buff, sizeof(buff) - 1, 0);
   if (bytes_recieved > 0) {
     buff[bytes_recieved] = '\0';
@@ -141,7 +145,7 @@ void accept_client(int server_socket_fd, char *serve_from) {
   struct HTTPRequest request;
   memset(&request, 0, sizeof(request));
   parse_http_request(buff, &request);
-  char serve_file_path[2048];
+  char serve_file_path[4096];
   snprintf(serve_file_path, sizeof(serve_file_path), "%s%s", serve_from,
            request.path);
 
@@ -149,15 +153,14 @@ void accept_client(int server_socket_fd, char *serve_from) {
   char header_buffer[4096];
   const char *content_type = get_content_type(request.extension);
   create_response_headers(header_buffer, sizeof(header_buffer), content_type);
-  int bytes_sent =
-      send(client_socket_fd, header_buffer, strlen(header_buffer), 0);
+  send(client_socket_fd, header_buffer, strlen(header_buffer), 0);
 
   // Send Response Body
   char resp_buffer[8192];
   memset(&resp_buffer, 0, sizeof(resp_buffer));
   ssize_t resp_bytes =
       read_file(serve_file_path, resp_buffer, sizeof(resp_buffer));
-  bytes_sent = send(client_socket_fd, resp_buffer, resp_bytes, 0);
+  send(client_socket_fd, resp_buffer, resp_bytes, 0);
 
   // Close connection
   close(client_socket_fd);
