@@ -10,7 +10,7 @@ void get_handler(HTTPRequest *req, HTTPResponse *res) {
 int main(int argc, char **argv) {
   Router app = {.host = "127.0.0.1", .port = "8080"};
 
-  router_get(&app, "/index.html", get_handler);
+  router_get(&app, "/endpoint", get_handler);
 
   router_static(&app, "./public");
   router_run(&app);

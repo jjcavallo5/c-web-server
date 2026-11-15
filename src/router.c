@@ -42,6 +42,7 @@ void serve_static(const char *file_path, HTTPRequest *req, HTTPResponse *res) {
   res->body[bytes_read] = '\0';
 
   // Create headers
+  res->status = OK;
   create_response_headers(&res->headers, bytes_read,
                           get_content_type(req->extension));
 }
@@ -62,11 +63,21 @@ void router_dispatch(Router *router, HTTPRequest *req, HTTPResponse *res) {
     }
   }
 
-  // Priority 2: Registered static files
   if (req->method == GET) {
     char resolved_path[PATH_MAX];
     snprintf(resolved_path, PATH_MAX, "%s%s", router->static_path, req->path);
+    // Priority 2a: Registered static files, / -> /index.html
+    char index_path[PATH_MAX];
+    snprintf(index_path, PATH_MAX, "%s%s", router->static_path, "/index.html");
+    int is_slash = strlen(req->path) == 1 && strncmp(req->path, "/", 1) == 0;
+    if (is_slash && access(index_path, F_OK) == 0) {
+      serve_static(index_path, req, res);
+      return;
+    }
+
+    // Priority 2b: Other static files
     if (access(resolved_path, F_OK) == 0) {
+      printf("Matched %s with %s\n", req->path, resolved_path);
       serve_static(resolved_path, req, res);
       return;
     }
@@ -79,16 +90,16 @@ void router_dispatch(Router *router, HTTPRequest *req, HTTPResponse *res) {
 int server_interface(Router *router, char *in_buffer, ssize_t in_buffer_len,
                      char *out_buffer) {
   // Parse HTTP method
-  struct HTTPRequest request;
-  memset(&request, 0, sizeof(request));
+  struct HTTPRequest request = {0};
   parse_http_request(in_buffer, &request);
 
   // Dispatch
-  HTTPResponse response;
+  HTTPResponse response = {0};
   router_dispatch(router, &request, &response);
 
   // Save output
   form_http_response(out_buffer, 8192, &response);
+  printf("Out Buffer: %s\n", out_buffer);
 
   return 0;
 }

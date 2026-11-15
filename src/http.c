@@ -52,6 +52,12 @@ void parse_http_request(char *request_buffer, struct HTTPRequest *request) {
   int path_len = second_space - first_space - 1;
   strncpy(request->path, request_buffer + start_idx, path_len);
 
+  // Parse Extention Exception: / path
+  if (strlen(request->path) == 1 && strncmp(request->path, "/", 1) == 0) {
+    strncpy(request->extension, "html", 5);
+    return;
+  }
+
   // Parse Extention
   char *dot = strrchr(request->path, '.');
   int idx_of_dot = dot - request->path;
@@ -84,7 +90,7 @@ void form_http_response(char *out_buffer, ssize_t buffer_size,
 
 void send_404(HTTPRequest *req, HTTPResponse *res) {
   res->status = NOT_FOUND;
-  char message[] = "404 Not Found";
+  char message[] = "404 Not Found\n";
   create_response_headers(&res->headers, sizeof(message) - 1, "text/plain");
   strncpy(res->body, message, sizeof(message));
 }
