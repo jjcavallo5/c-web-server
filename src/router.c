@@ -2,21 +2,9 @@
 #include "http.h"
 #include "server.h"
 #include <netdb.h>
-#include <stdio.h>
 #include <string.h>
 
 #define MAX_ROUTES 32
-
-void get_handler(HTTPRequest *req, HTTPResponse *res) {
-  printf("GET: Handled route: %s\n", req->path);
-  res->status = OK;
-  create_response_headers(&res->headers, 11, "text/plain");
-  strcpy(res->body, "It worked!\n");
-}
-
-void post_handler(struct HTTPRequest *req) {
-  printf("POST: Handled route: %s\n", req->path);
-}
 
 int router_register(Router *router, enum HTTPMethod method, const char *path,
                     HTTPHandler handler) {
@@ -39,7 +27,7 @@ int router_post(Router *router, const char *path, HTTPHandler handler) {
   return router_register(router, POST, path, handler);
 }
 
-void router_put(Router *router, const char *route, HTTPHandler handler) {}
+int router_put(Router *router, const char *path, HTTPHandler handler) {}
 
 void router_static(Router *router, const char *root) {}
 
@@ -72,10 +60,10 @@ int server_interface(Router *router, char *in_buffer, ssize_t in_buffer_len,
 
 void router_run(Router *router) { run_http_server(router, server_interface); }
 
-int main() {
-  Router app = {.host = "127.0.0.1", .port = "8080"};
-
-  router_get(&app, "/index.html", get_handler);
-
-  router_run(&app);
-}
+// int main() {
+//   Router app = {.host = "127.0.0.1", .port = "8080"};
+//
+//   router_get(&app, "/index.html", get_handler);
+//
+//   router_run(&app);
+// }

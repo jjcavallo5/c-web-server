@@ -25,4 +25,11 @@ typedef struct Router {
   int _num_routes;
 } Router;
 
+int router_get(Router *router, const char *path, HTTPHandler handler);
+int router_post(Router *router, const char *path, HTTPHandler handler);
+int router_put(Router *router, const char *path, HTTPHandler handler);
+int router_delete(Router *router, const char *path, HTTPHandler handler);
+void router_static(Router *router, const char *root);
+void router_run(Router *router);
+
 #endif /* ROUTER_H */
