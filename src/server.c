@@ -88,7 +88,7 @@ int accept_client(int server_socket_fd) {
 }
 
 void close_connection(int fd, struct pollfd *pfds, nfds_t num_open_fds) {
-  nfds_t fd_idx = -1;
+  int fd_idx = -1;
   for (nfds_t i = 0; i < num_open_fds; i++) {
     if (pfds[i].fd == fd)
       fd_idx = i;
@@ -143,7 +143,7 @@ int run_http_server(Router *router, TcpCallback callback) {
         if (bytes_recieved > 0) {
           request_buffer[bytes_recieved] = '\0';
 
-          callback(router, request_buffer, strlen(request_buffer), out_buffer);
+          callback(router, request_buffer, out_buffer);
 
           send(pfds[i].fd, out_buffer, strlen(out_buffer), 0);
         } else {

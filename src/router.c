@@ -32,7 +32,13 @@ int router_post(Router *router, const char *path, HTTPHandler handler) {
   return router_register(router, POST, path, handler);
 }
 
-int router_put(Router *router, const char *path, HTTPHandler handler) {}
+int router_put(Router *router, const char *path, HTTPHandler handler) {
+  return router_register(router, PUT, path, handler);
+}
+
+int router_delete(Router *router, const char *path, HTTPHandler handler) {
+  return router_register(router, DELETE, path, handler);
+}
 
 void serve_static(const char *file_path, HTTPRequest *req, HTTPResponse *res) {
   // Read file
@@ -64,11 +70,13 @@ void router_dispatch(Router *router, HTTPRequest *req, HTTPResponse *res) {
   }
 
   if (req->method == GET) {
-    char resolved_path[PATH_MAX];
-    snprintf(resolved_path, PATH_MAX, "%s%s", router->static_path, req->path);
+    char resolved_path[2 * PATH_MAX];
+    snprintf(resolved_path, 2 * PATH_MAX, "%s%s", router->static_path,
+             req->path);
     // Priority 2a: Registered static files, / -> /index.html
-    char index_path[PATH_MAX];
-    snprintf(index_path, PATH_MAX, "%s%s", router->static_path, "/index.html");
+    char index_path[2 * PATH_MAX];
+    snprintf(index_path, 2 * PATH_MAX, "%s%s", router->static_path,
+             "/index.html");
     int is_slash = strlen(req->path) == 1 && strncmp(req->path, "/", 1) == 0;
     if (is_slash && access(index_path, F_OK) == 0) {
       serve_static(index_path, req, res);
@@ -84,11 +92,10 @@ void router_dispatch(Router *router, HTTPRequest *req, HTTPResponse *res) {
   }
 
   // No match, 404
-  send_404(req, res);
+  send_404(res);
 }
 
-int server_interface(Router *router, char *in_buffer, ssize_t in_buffer_len,
-                     char *out_buffer) {
+int server_interface(Router *router, char *in_buffer, char *out_buffer) {
   // Parse HTTP method
   struct HTTPRequest request = {0};
   parse_http_request(in_buffer, &request);
@@ -99,7 +106,6 @@ int server_interface(Router *router, char *in_buffer, ssize_t in_buffer_len,
 
   // Save output
   form_http_response(out_buffer, 8192, &response);
-  printf("Out Buffer: %s\n", out_buffer);
 
   return 0;
 }

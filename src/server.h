@@ -4,8 +4,7 @@
 
 #include "router.h"
 
-typedef int (*TcpCallback)(Router *router, char *in_buffer,
-                           ssize_t in_buffer_len, char *out_buffer);
+typedef int (*TcpCallback)(Router *router, char *in_buffer, char *out_buffer);
 
 int run_http_server(Router *router, TcpCallback callback);
 

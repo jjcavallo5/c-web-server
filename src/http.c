@@ -31,6 +31,8 @@ const char *format_response_code(HTTPStatus status) {
     return "HTTP/1.1 404 Not Found";
   case SERVER_ERROR:
     return "HTTP/1.1 500 Internal Server Error";
+  default:
+    return "HTTP/1.1 200 OK";
   }
 }
 
@@ -88,9 +90,9 @@ void form_http_response(char *out_buffer, ssize_t buffer_size,
            response->body);
 }
 
-void send_404(HTTPRequest *req, HTTPResponse *res) {
+void send_404(HTTPResponse *res) {
   res->status = NOT_FOUND;
   char message[] = "404 Not Found\n";
   create_response_headers(&res->headers, sizeof(message) - 1, "text/plain");
-  strncpy(res->body, message, sizeof(message));
+  strncpy(res->body, message, 15);
 }

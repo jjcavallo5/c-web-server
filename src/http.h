@@ -1,9 +1,10 @@
 #ifndef HTTP_H
 #define HTTP_H
 
+#include <linux/limits.h>
 #include <sys/types.h>
 
-typedef enum HTTPMethod { GET, POST } HTTPMethod;
+typedef enum HTTPMethod { GET, POST, PUT, DELETE } HTTPMethod;
 
 typedef enum HTTPStatus {
   OK = 200,
@@ -12,7 +13,7 @@ typedef enum HTTPStatus {
 } HTTPStatus;
 
 typedef struct HTTPRequest {
-  char path[4096];
+  char path[PATH_MAX];
   char extension[256];
   enum HTTPMethod method;
 } HTTPRequest;
@@ -38,6 +39,6 @@ void form_http_response(char *out_buffer, ssize_t buffer_size,
 void create_response_headers(HTTPHeaders *headers, ssize_t content_length,
                              const char *content_type);
 
-void send_404(HTTPRequest *req, HTTPResponse *res);
+void send_404(HTTPResponse *res);
 
 #endif /* HTTP_H */
