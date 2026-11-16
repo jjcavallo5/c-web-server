@@ -23,6 +23,19 @@ const char *get_content_type(char *extension) {
   return "text/plain";
 }
 
+const char *format_response_code(HTTPStatus status) {
+  switch (status) {
+  case OK:
+    return "HTTP/1.1 200 OK";
+  case NOT_FOUND:
+    return "HTTP/1.1 404 Not Found";
+  case SERVER_ERROR:
+    return "HTTP/1.1 500 Internal Server Error";
+  default:
+    return "HTTP/1.1 200 OK";
+  }
+}
+
 void parse_http_request(char *request_buffer, struct HTTPRequest *request) {
   // Parse Method (GET and POST supported for now)
   if (strncmp(request_buffer, "GET", 3) == 0) {
@@ -41,6 +54,12 @@ void parse_http_request(char *request_buffer, struct HTTPRequest *request) {
   int path_len = second_space - first_space - 1;
   strncpy(request->path, request_buffer + start_idx, path_len);
 
+  // Parse Extention Exception: / path
+  if (strlen(request->path) == 1 && strncmp(request->path, "/", 1) == 0) {
+    strncpy(request->extension, "html", 5);
+    return;
+  }
+
   // Parse Extention
   char *dot = strrchr(request->path, '.');
   int idx_of_dot = dot - request->path;
@@ -55,11 +74,25 @@ void print_request(struct HTTPRequest *request) {
   printf(format, request->method, request->path, request->extension);
 }
 
-void create_response_headers(char *buffer, size_t buffer_size,
-                             const char *content_type, size_t content_size) {
-  char format[] = "HTTP/1.1 200 OK\r\n"
-                  "Connection: keep-alive\r\n"
-                  "Content-Length: %d\r\n"
-                  "Content-Type: %s\r\n\r\n\0";
-  snprintf(buffer, buffer_size, format, content_size, content_type);
+void create_response_headers(HTTPHeaders *headers, ssize_t content_length,
+                             const char *content_type) {
+  headers->content_length = content_length;
+  strncpy(headers->content_type, content_type, 64);
+}
+
+void form_http_response(char *out_buffer, ssize_t buffer_size,
+                        HTTPResponse *response) {
+  snprintf(out_buffer, buffer_size,
+           "%s\r\nContent-Type: %s\r\nContent-Length: %lu\r\nConnection: "
+           "keep-alive\r\n\r\n%s",
+           format_response_code(response->status),
+           response->headers.content_type, response->headers.content_length,
+           response->body);
+}
+
+void send_404(HTTPResponse *res) {
+  res->status = NOT_FOUND;
+  char message[] = "404 Not Found\n";
+  create_response_headers(&res->headers, sizeof(message) - 1, "text/plain");
+  strncpy(res->body, message, 15);
 }

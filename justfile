@@ -16,6 +16,8 @@ build-setup:
 build-objs: build-setup
   just compile src/main.c main.o
   just compile src/http.c http.o
+  just compile src/server.c server.o
+  just compile src/router.c router.o
 
 build: build-objs
   {{ CC }} {{ CC_FLAGS }} {{ RELEASE_OBJ_FOLDER }}/*.o -o {{ RELEASE_TARGET }}
